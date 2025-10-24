@@ -1,0 +1,135 @@
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+import seaborn as sns
+import matplotlib.pyplot as plt
+import re
+from urllib.parse import urlparse
+from math import log2
+
+df = pd.read_csv("dataset_phishing.csv")
+print("Kích thước dữ liệu:", df.shape)
+print(df['status'].value_counts())
+df.describe()
+
+selected_features = [
+    'length_url', 'length_hostname',
+    'nb_dots', 'nb_hyphens', 'nb_at', 'nb_qm', 'nb_and', 'nb_eq', 'nb_underscore',
+    'nb_tilde', 'nb_percent', 'nb_slash', 'nb_star', 'nb_colon', 'nb_comma',
+    'nb_semicolumn', 'nb_dollar', 'nb_space', 'nb_www', 'nb_com', 'nb_dslash',
+    'http_in_path', 'https_token', 'ratio_digits_url', 'ratio_digits_host',
+    'punycode', 'port', 'tld_in_path', 'tld_in_subdomain', 'abnormal_subdomain',
+    'nb_subdomains', 'prefix_suffix', 'random_domain', 'shortening_service',
+    'path_extension', 'ip'
+]
+
+df['status'] = df['status'].map({'legitimate': 0, 'phishing': 1})
+X = df[selected_features]
+y = df['status']
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train_val, X_test, y_train_val, y_test = train_test_split(
+    X_scaled, y, test_size=0.15, random_state=42, stratify=y
+)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_val, y_train_val, test_size=0.1765, random_state=42, stratify=y_train_val
+)
+print(X_train.shape, X_val.shape, X_test.shape)
+
+log_reg = LogisticRegression(max_iter=1000)
+log_reg.fit(X_train, y_train)
+y_pred_lr = log_reg.predict(X_val)
+print("Accuracy Logistic Regression (val):", accuracy_score(y_val, y_pred_lr))
+
+rf = RandomForestClassifier(n_estimators=200, random_state=42)
+gb = GradientBoostingClassifier()
+
+ensemble = VotingClassifier(
+    estimators=[('lr', log_reg), ('rf', rf), ('gb', gb)], voting='soft'
+)
+ensemble.fit(X_train, y_train)
+
+y_pred_ens_val = ensemble.predict(X_val)
+print("Accuracy Ensemble (val):", accuracy_score(y_val, y_pred_ens_val))
+
+y_pred_ens_test = ensemble.predict(X_test)
+print("Accuracy Ensemble (test):", accuracy_score(y_test, y_pred_ens_test))
+
+cm = confusion_matrix(y_test, y_pred_ens_test)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix - Ensemble Learning')
+plt.show()
+
+def extract_features(url):
+    features = {}
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ''
+    path = parsed.path
+    domain_parts = hostname.split('.') if hostname else []
+    domain = '.'.join(domain_parts[-2:]) if len(domain_parts) >= 2 else hostname
+    subdomain = '.'.join(domain_parts[:-2]) if len(domain_parts) > 2 else ''
+    tld = domain_parts[-1] if domain_parts else ''
+
+    features['length_url'] = len(url)
+    features['length_hostname'] = len(hostname)
+    features['nb_dots'] = url.count('.')
+    features['nb_hyphens'] = url.count('-')
+    features['nb_at'] = url.count('@')
+    features['nb_qm'] = url.count('?')
+    features['nb_and'] = url.count('&')
+    features['nb_eq'] = url.count('=')
+    features['nb_underscore'] = url.count('_')
+    features['nb_tilde'] = url.count('~')
+    features['nb_percent'] = url.count('%')
+    features['nb_slash'] = url.count('/')
+    features['nb_star'] = url.count('*')
+    features['nb_colon'] = url.count(':')
+    features['nb_comma'] = url.count(',')
+    features['nb_semicolumn'] = url.count(';')
+    features['nb_dollar'] = url.count('$')
+    features['nb_space'] = url.count(' ')
+    features['nb_www'] = 1 if 'www' in hostname else 0
+    features['nb_com'] = 1 if '.com' in hostname else 0
+    features['nb_dslash'] = url.count('//')
+    features['http_in_path'] = 1 if 'http' in path.lower() else 0
+    features['https_token'] = 1 if 'https' in url.lower() else 0
+    features['ratio_digits_url'] = sum(c.isdigit() for c in url) / len(url) if len(url) > 0 else 0
+    features['ratio_digits_host'] = sum(c.isdigit() for c in hostname) / len(hostname) if len(hostname) > 0 else 0
+    features['punycode'] = 1 if hostname.startswith('xn--') else 0
+    features['port'] = 1 if parsed.port else 0
+    features['tld_in_path'] = 1 if tld in path else 0
+    features['tld_in_subdomain'] = 1 if tld in subdomain else 0
+    features['abnormal_subdomain'] = 1 if re.search(r'\.{2,}', subdomain) or len(subdomain) > 30 else 0
+    features['nb_subdomains'] = len(domain_parts)
+    features['prefix_suffix'] = 1 if '-' in domain else 0
+
+    def entropy(s):
+        p, lns = {}, len(s)
+        for c in s:
+            p[c] = p.get(c, 0) + 1
+        return -sum((count / lns) * log2(count / lns) for count in p.values()) if lns > 0 else 0
+    features['random_domain'] = 1 if entropy(domain) > 4 else 0
+
+    shorteners = ['bit.ly', 't.co', 'goo.gl', 'tinyurl.com', 'ow.ly', 'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'mcaf.ee']
+    features['shortening_service'] = 1 if any(s in hostname for s in shorteners) else 0
+    features['path_extension'] = 1 if path.endswith(('.exe', '.zip', '.rar', '.php', '.html')) else 0
+    features['ip'] = 1 if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', hostname) or re.match(r'^[0-9a-fA-F:]+$', hostname) else 0
+
+    return features
+
+while True:
+    url_input = input("Nhập URL để kiểm tra: ")
+    if not url_input:
+        break
+    feats = extract_features(url_input)
+    X_new = pd.DataFrame([feats])
+    X_new_scaled = scaler.transform(X_new)
+    pred = ensemble.predict(X_new_scaled)[0]
+    print("Đây là PHISHING website (giả mạo)." if pred == 1 else "Đây là LEGITIMATE website (an toàn).")

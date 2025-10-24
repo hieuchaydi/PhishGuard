@@ -1,0 +1,93 @@
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import re
+import numpy as np
+
+df = pd.read_csv("dataset_phishing.csv")
+df.head()
+print("Kích thước dữ liệu:", df.shape)
+print(df['status'].value_counts())
+df.describe()
+
+selected_features = [
+    'length_url',
+    'nb_dots',
+    'nb_hyphens',
+    'nb_at',
+    'nb_qm',
+    'nb_eq',
+    'nb_slash',
+    'https_token',
+    'ratio_digits_url'
+]
+
+df['status'] = df['status'].map({'legitimate':0, 'phishing':1})
+X = df[selected_features]
+y = df['status']
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42, stratify=y)
+X_train.shape, X_test.shape
+
+
+log_reg = LogisticRegression(max_iter=1000)
+log_reg.fit(X_train, y_train)
+y_pred_lr = log_reg.predict(X_test)
+print("Accuracy Logistic Regression:", accuracy_score(y_test, y_pred_lr))
+print(classification_report(y_test, y_pred_lr))
+
+rf = RandomForestClassifier(n_estimators=200, random_state=42)
+gb = GradientBoostingClassifier()
+
+# Ensemble (Voting)
+ensemble = VotingClassifier(estimators=[
+    ('lr', log_reg),
+    ('rf', rf),
+    ('gb', gb)
+], voting='soft')
+
+ensemble.fit(X_train, y_train)
+y_pred_ens = ensemble.predict(X_test)
+print("Accuracy Ensemble:", accuracy_score(y_test, y_pred_ens))
+cm = confusion_matrix(y_test, y_pred_ens)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix - Ensemble Learning')
+plt.show()
+def extract_features(url):
+    features = {}
+    features['length_url'] = len(url)
+    features['nb_dots'] = url.count('.')
+    features['nb_hyphens'] = url.count('-')
+    features['nb_at'] = url.count('@')
+    features['nb_qm'] = url.count('?')
+    features['nb_eq'] = url.count('=')
+    features['nb_slash'] = url.count('/')
+    features['https_token'] = 1 if 'https' in url else 0
+    features['ratio_digits_url'] = sum(c.isdigit() for c in url)/len(url)
+    return features
+while True:
+    url_input = input("Nhập URL để kiểm tra: ")
+    if not url_input:
+        break
+    
+    feats = extract_features(url_input)
+    X_new = pd.DataFrame([feats])
+    X_new_scaled = scaler.transform(X_new)
+    
+    pred = ensemble.predict(X_new_scaled)[0]
+    
+    if pred == 1:
+        print("Đây là PHISHING website (giả mạo).")
+    else:
+        print("Đây là LEGITIMATE website (an toàn).")
