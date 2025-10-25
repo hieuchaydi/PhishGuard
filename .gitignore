@@ -1,7 +1,25 @@
-venv/
+# Python-specific ignores
 __pycache__/
 *.pyc
-models/
-*.pkl
-*.csv
-.env
+*.pyo
+*.pyd
+
+# Virtual environment directories
+venv/
+env/
+.venv/
+
+# Dataset and model files (optional, depending on size and privacy)
+preprocessed_data.pkl
+ensemble_model.pkl
+scaler.pkl
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Miscellaneous
+*.log
+*.DS_Store
