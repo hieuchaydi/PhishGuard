@@ -7,18 +7,20 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 class EnsembleClassifier:
-    def __init__(self, model_path='ensemble_model.pkl', scaler_path='scaler.pkl', data_path='preprocessed_data.pkl'):
+    def __init__(self, model_path='ensemble_model.pkl', scaler_path='scaler.pkl', data_path='preprocessed_data.pkl', info_path='model_info.pkl'):
         """
-        Initialize the EnsembleClassifier.
+        Khởi tạo EnsembleClassifier.
 
         Parameters:
-        - model_path (str): Path to save/load the trained model.
-        - scaler_path (str): Path to save/load the scaler.
-        - data_path (str): Path to the preprocessed data.
+        - model_path (str): Đường dẫn để lưu/tải mô hình.
+        - scaler_path (str): Đường dẫn để lưu/tải scaler.
+        - data_path (str): Đường dẫn đến dữ liệu đã xử lý.
+        - info_path (str): Đường dẫn để lưu thông tin mô hình (accuracy, confusion matrix).
         """
         self.model_path = model_path
         self.scaler_path = scaler_path
         self.data_path = data_path
+        self.info_path = info_path
         self.ensemble = None
         self.scaler = None
         self.features = None
@@ -28,22 +30,23 @@ class EnsembleClassifier:
         self.y_train = None
         self.y_val = None
         self.y_test = None
+        self.model_info = None
 
     def load_data(self):
         """
-        Load preprocessed data from a pickle file.
+        Tải dữ liệu đã xử lý từ file pickle.
         """
         try:
             (self.X_train, self.X_val, self.X_test, self.y_train, self.y_val, 
              self.y_test, self.scaler, self.features) = joblib.load(self.data_path)
-            print("Preprocessed data loaded successfully.")
+            print("Tải dữ liệu đã xử lý thành công.")
         except Exception as e:
-            print(f"Error loading data: {e}")
+            print(f"Lỗi khi tải dữ liệu: {e}")
             raise
 
     def initialize_model(self):
         """
-        Initialize the ensemble classifier with logistic regression, random forest, and gradient boosting.
+        Khởi tạo mô hình ensemble với Logistic Regression, Random Forest, và Gradient Boosting.
         """
         lr = LogisticRegression(max_iter=1000)
         rf = RandomForestClassifier(n_estimators=200, random_state=42)
@@ -52,56 +55,68 @@ class EnsembleClassifier:
 
     def train_model(self):
         """
-        Train the ensemble model on the training data.
+        Huấn luyện mô hình ensemble trên tập train.
         """
         if self.X_train is None or self.y_train is None:
-            raise ValueError("Training data not loaded. Call load_data() first.")
+            raise ValueError("Dữ liệu train chưa được tải. Gọi load_data() trước.")
         self.ensemble.fit(self.X_train, self.y_train)
-        print("Model training completed.")
+        print("Huấn luyện mô hình hoàn tất.")
 
     def evaluate_model(self):
         """
-        Evaluate the model on validation and test sets, and display confusion matrix.
+        Đánh giá mô hình trên tập validation và test, lưu thông tin mô hình.
         """
         if self.ensemble is None:
-            raise ValueError("Model not trained. Call train_model() first.")
+            raise ValueError("Mô hình chưa được huấn luyện. Gọi train_model() trước.")
         
-        # Validation accuracy
+        # Độ chính xác validation
         val_pred = self.ensemble.predict(self.X_val)
         val_acc = accuracy_score(self.y_val, val_pred)
-        print(f"Validation accuracy: {val_acc:.4f}")
-
-        # Test accuracy
+        
+        # Độ chính xác test
         test_pred = self.ensemble.predict(self.X_test)
         test_acc = accuracy_score(self.y_test, test_pred)
-        print(f"Test accuracy: {test_acc:.4f}")
+        
+        # Ma trận nhầm lẫn
+        cm = confusion_matrix(self.y_test, test_pred).tolist()  # Chuyển sang list để lưu JSON
+        
+        # Lưu thông tin mô hình
+        self.model_info = {
+            'val_accuracy': val_acc,
+            'test_accuracy': test_acc,
+            'confusion_matrix': cm,
+            'features': self.features
+        }
+        
+        print(f"Độ chính xác validation: {val_acc:.4f}")
+        print(f"Độ chính xác test: {test_acc:.4f}")
 
-        # Confusion matrix
-        cm = confusion_matrix(self.y_test, test_pred)
+        # Vẽ ma trận nhầm lẫn
         plt.figure(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.xlabel('Predicted')
-        plt.ylabel('Actual')
-        plt.title('Confusion Matrix')
+        plt.xlabel('Dự đoán')
+        plt.ylabel('Thực tế')
+        plt.title('Ma Trận Nhầm Lẫn')
         plt.show()
 
     def save_model(self):
         """
-        Save the trained model and scaler to disk.
+        Lưu mô hình, scaler và thông tin mô hình vào đĩa.
         """
         if self.ensemble is None:
-            raise ValueError("Model not trained. Call train_model() first.")
+            raise ValueError("Mô hình chưa được huấn luyện. Gọi train_model() trước.")
         try:
             joblib.dump(self.ensemble, self.model_path)
             joblib.dump(self.scaler, self.scaler_path)
-            print(f"Model and scaler saved to {self.model_path} and {self.scaler_path}")
+            joblib.dump(self.model_info, self.info_path)
+            print(f"Mô hình, scaler và thông tin mô hình được lưu tại {self.model_path}, {self.scaler_path}, {self.info_path}")
         except Exception as e:
-            print(f"Error saving model or scaler: {e}")
+            print(f"Lỗi khi lưu mô hình, scaler hoặc thông tin: {e}")
             raise
 
     def run_training_pipeline(self):
         """
-        Run the complete training pipeline: load data, initialize, train, evaluate, and save.
+        Chạy toàn bộ pipeline huấn luyện: tải dữ liệu, khởi tạo, huấn luyện, đánh giá, lưu mô hình.
         """
         self.load_data()
         self.initialize_model()

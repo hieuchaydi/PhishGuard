@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Phát Hiện Web Giả Mạo</h1>
+        <div class="input-group">
+            <label for="url-input">Nhập URL để kiểm tra:</label>
+            <input type="text" id="url-input" placeholder="https://example.com">
+            <button onclick="checkURL()">Kiểm tra</button>
+            <button onclick="showModelInfo()">Xem Dữ Liệu Mô Hình</button>
+        </div>
+        <div id="result" class="result"></div>
+        <div id="html-analysis" class="html-analysis"></div>
+        <div id="features-analysis" class="features-analysis"></div>
+        <div id="model-info" class="model-info"></div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

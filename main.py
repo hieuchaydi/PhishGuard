@@ -1,6 +1,6 @@
 from preprocess import PhishingDataPreprocessor
 from model import EnsembleClassifier
-from gui import PhishingDetectorGUI
+from api import PhishingDetectorGUI
 
 if __name__ == "__main__":
     # Preprocess data

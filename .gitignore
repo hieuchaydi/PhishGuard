@@ -9,10 +9,7 @@ venv/
 env/
 .venv/
 
-# Dataset and model files (optional, depending on size and privacy)
-preprocessed_data.pkl
-ensemble_model.pkl
-scaler.pkl
+# Dataset and model files
 
 # IDE and editor files
 .vscode/

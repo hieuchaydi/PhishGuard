@@ -1,0 +1,14 @@
+your_project/
+├── .gitignore
+├── preprocess.py
+├── model.py
+├── api.py                 # Thay gui.py, chứa FastAPI server
+├── requirements.txt
+├── static/
+│   ├── index.html        # Giao diện web
+│   ├── styles.css        # CSS cho giao diện
+│   ├── script.js         # JavaScript xử lý API calls
+├── dataset_phishing.csv  # Không đẩy lên GitHub
+├── preprocessed_data.pkl # Tạo sau khi chạy preprocess.py
+├── ensemble_model.pkl    # Tạo sau khi chạy model.py
+├── scaler.pkl            # Tạo sau khi chạy model.py
