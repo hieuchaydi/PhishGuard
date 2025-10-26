@@ -2,18 +2,21 @@ async function checkURL() {
     const urlInput = document.getElementById('url-input').value;
     const resultDiv = document.getElementById('result');
     const htmlAnalysisDiv = document.getElementById('html-analysis');
+    const featuresAnalysisDiv = document.getElementById('features-analysis');
     const modelInfoDiv = document.getElementById('model-info');
 
     if (!urlInput) {
         resultDiv.textContent = 'Vui lòng nhập URL!';
         resultDiv.className = 'result';
         htmlAnalysisDiv.innerHTML = '';
+        featuresAnalysisDiv.innerHTML = '';
         return;
     }
 
     resultDiv.textContent = 'Đang kiểm tra...';
     resultDiv.className = 'result checking';
     htmlAnalysisDiv.innerHTML = '';
+    featuresAnalysisDiv.innerHTML = '';
     modelInfoDiv.innerHTML = '';
 
     try {
@@ -30,8 +33,12 @@ async function checkURL() {
         }
 
         const data = await response.json();
-        resultDiv.textContent = data.result;
-        resultDiv.className = 'result ' + (data.result.includes('PHISHING') ? 'phishing' : 'legitimate');
+        resultDiv.innerHTML = `
+            <p>🔍 URL: ${data.url}</p>
+            <p>👉 Kết quả dự đoán: ${data.result}</p>
+            <p>🔢 Xác suất phishing: ${data.probability}</p>
+        `;
+        resultDiv.className = 'result ' + (data.result.includes('Phishing') ? 'phishing' : 'legitimate');
 
         const analysis = data.html_analysis;
         htmlAnalysisDiv.innerHTML = `
@@ -45,10 +52,19 @@ async function checkURL() {
                 ${analysis.external_links.length > 0 ? analysis.external_links.map(link => `<li>${link}</li>`).join('') : '<li>Không có</li>'}
             </ul>
         `;
+
+        const features = data.features;
+        featuresAnalysisDiv.innerHTML = `
+            <h3>Phân Tích Đặc Trưng</h3>
+            <ul>
+                ${Object.keys(features).map(key => `<li>${key}: ${features[key]}</li>`).join('')}
+            </ul>
+        `;
     } catch (error) {
         resultDiv.textContent = 'Lỗi: ' + error.message;
         resultDiv.className = 'result';
         htmlAnalysisDiv.innerHTML = '';
+        featuresAnalysisDiv.innerHTML = '';
     }
 }
 

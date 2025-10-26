@@ -87,6 +87,9 @@ class PhishingDetector:
         return count
 
     def extract_features(self, url):
+        # Thêm giao thức https:// nếu thiếu
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
         p = urlparse(url)
         host, path = p.hostname or '', p.path
         parts = host.split('.') if host else []
@@ -165,25 +168,32 @@ class PhishingDetector:
         return feats, html_analysis
 
     def predict(self, url: str):
-        """
-        Dự đoán URL và trả về kết quả cùng phân tích HTML.
-        """
         try:
+            # Thêm giao thức https:// nếu thiếu
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
             feats, html_analysis = self.extract_features(url)
             X = pd.DataFrame([feats])[self.features]
             X_scaled = self.scaler.transform(X)
             pred = self.ensemble.predict(X_scaled)[0]
+            prob = self.ensemble.predict_proba(X_scaled)[0][1]  # Xác suất lớp phishing (1)
             return {
-                "result": "PHISHING (Giả mạo)" if pred else "LEGITIMATE (An toàn)",
+                "url": url,
+                "result": "Phishing ⚠️" if pred else "Legitimate ✅",
+                "probability": round(prob, 2),
                 "html_analysis": html_analysis,
-                "features": feats  # Trả về dictionary các đặc trưng
+                "features": feats
             }
         except Exception as e:
             logger.error(f"Lỗi khi dự đoán URL {url}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 # Khởi tạo detector
-detector = PhishingDetector()
+try:
+    detector = PhishingDetector()
+except Exception as e:
+    logger.error(f"Không thể khởi tạo PhishingDetector: {e}")
+    raise
 
 # Route để phục vụ trang HTML
 @app.get("/")
@@ -203,6 +213,8 @@ async def predict_phishing(request: URLRequest):
 async def get_model_info():
     try:
         logger.info("Truy cập endpoint /model_info")
+        if detector.model_info is None:
+            raise ValueError("Thông tin mô hình không khả dụng")
         return detector.model_info
     except Exception as e:
         logger.error(f"Lỗi khi truy xuất thông tin mô hình: {e}")
