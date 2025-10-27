@@ -3,23 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phishing Detector</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Phát hiện Web Giả Mạo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <div class="container">
-        <h1>Phát Hiện Web Giả Mạo</h1>
-        <div class="input-group">
-            <label for="url-input">Nhập URL để kiểm tra:</label>
-            <input type="text" id="url-input" placeholder="https://example.com">
-            <button onclick="checkURL()">Kiểm tra</button>
-            <button onclick="showModelInfo()">Xem Dữ Liệu Mô Hình</button>
+
+<body class="app-bg">
+
+    <div class="app-container">
+
+        <div class="header-box">
+            <i data-lucide="shield-alert" class="icon"></i>
+            <h1 class="title">Phát hiện Website Giả Mạo</h1>
         </div>
-        <div id="result" class="result"></div>
-        <div id="html-analysis" class="html-analysis"></div>
-        <div id="features-analysis" class="features-analysis"></div>
-        <div id="model-info" class="model-info"></div>
+
+        <p class="subtitle">
+            Nhập địa chỉ website để kiểm tra mức độ an toàn.
+        </p>
+
+        <div class="space-y-4">
+            <div class="input-group">
+                <input id="url-input" type="text" 
+                    placeholder="Ví dụ: https://facebook.com"
+                    class="input-field">
+                <button onclick="checkURL()" class="primary-btn">
+                    <i data-lucide="search" class="btn-icon"></i>Kiểm tra
+                </button>
+            </div>
+
+            <button onclick="showModelInfo()" class="secondary-btn">
+                <i data-lucide="file-text" class="btn-icon"></i>Xem Dữ Liệu Mô Hình
+            </button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <i data-lucide="loader-2" class="loading-icon"></i>
+            Đang kiểm tra trang web...
+        </div>
+
+        <div id="result" class="result-box hidden"></div>
+
+        <div id="html-analysis" class="analysis-box hidden"></div>
+        <div id="features-analysis" class="analysis-box hidden"></div>
+        <div id="model-info" class="analysis-box hidden"></div>
+
     </div>
+
     <script src="/static/script.js"></script>
+    <script>lucide.createIcons();</script>
+
 </body>
 </html>

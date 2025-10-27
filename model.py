@@ -5,6 +5,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier,
 from sklearn.metrics import accuracy_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class EnsembleClassifier:
     def __init__(self, model_path='ensemble_model.pkl', scaler_path='scaler.pkl', data_path='preprocessed_data.pkl', info_path='model_info.pkl'):
@@ -40,6 +41,7 @@ class EnsembleClassifier:
             (self.X_train, self.X_val, self.X_test, self.y_train, self.y_val, 
              self.y_test, self.scaler, self.features) = joblib.load(self.data_path)
             print("Tải dữ liệu đã xử lý thành công.")
+            print(f"Features used: {self.features}")
         except Exception as e:
             print(f"Lỗi khi tải dữ liệu: {e}")
             raise
@@ -48,10 +50,15 @@ class EnsembleClassifier:
         """
         Khởi tạo mô hình ensemble với Logistic Regression, Random Forest, và Gradient Boosting.
         """
-        lr = LogisticRegression(max_iter=1000)
-        rf = RandomForestClassifier(n_estimators=200, random_state=42)
-        gb = GradientBoostingClassifier()
-        self.ensemble = VotingClassifier(estimators=[('lr', lr), ('rf', rf), ('gb', gb)], voting='soft')
+        lr = LogisticRegression(max_iter=1000, random_state=42)
+        rf = RandomForestClassifier(n_estimators=200, max_depth=20, random_state=42)
+        gb = GradientBoostingClassifier(n_estimators=100, random_state=42)
+        # Increase weight for Random Forest to emphasize feature importance
+        self.ensemble = VotingClassifier(
+            estimators=[('lr', lr), ('rf', rf), ('gb', gb)],
+            voting='soft',
+            weights=[1, 2, 1]  # Higher weight for Random Forest
+        )
 
     def train_model(self):
         """
@@ -78,25 +85,37 @@ class EnsembleClassifier:
         test_acc = accuracy_score(self.y_test, test_pred)
         
         # Ma trận nhầm lẫn
-        cm = confusion_matrix(self.y_test, test_pred).tolist()  # Chuyển sang list để lưu JSON
+        cm = confusion_matrix(self.y_test, test_pred)
+        
+        # Feature importance từ Random Forest
+        rf = self.ensemble.named_estimators_['rf']
+        feature_importance = pd.DataFrame({
+            'feature': self.features,
+            'importance': rf.feature_importances_
+        }).sort_values('importance', ascending=False)
         
         # Lưu thông tin mô hình
         self.model_info = {
             'val_accuracy': val_acc,
             'test_accuracy': test_acc,
-            'confusion_matrix': cm,
-            'features': self.features
+            'confusion_matrix': cm.tolist(),
+            'features': self.features,
+            'feature_importance': feature_importance.to_dict('records')
         }
         
         print(f"Độ chính xác validation: {val_acc:.4f}")
         print(f"Độ chính xác test: {test_acc:.4f}")
-
+        print("\nFeature Importance:")
+        print(feature_importance)
+        
         # Vẽ ma trận nhầm lẫn
         plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=['Legitimate', 'Phishing'], 
+                    yticklabels=['Legitimate', 'Phishing'])
         plt.xlabel('Dự đoán')
         plt.ylabel('Thực tế')
-        plt.title('Ma Trận Nhầm Lẫn')
+        plt.title('Ma Trận Nhầm Lẫn (Test Set)')
         plt.show()
 
     def save_model(self):

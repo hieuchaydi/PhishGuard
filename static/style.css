@@ -1,0 +1,307 @@
+/* Reset mặc định */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #e0f2fe, #f3f4f6);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Container chính */
+.app-container {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    max-width: 700px;
+    width: 100%;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.app-container:hover {
+    transform: translateY(-5px);
+}
+
+/* Header */
+.header-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.header-box .icon {
+    color: #dc2626;
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.title {
+    color: #1e40af;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.subtitle {
+    color: #374151;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+}
+
+/* Input và Button */
+.input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.input-field {
+    width: 100%;
+    max-width: 500px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-field:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.2);
+}
+
+.primary-btn {
+    padding: 12px 25px;
+    font-size: 1.1rem;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.primary-btn:hover {
+    background-color: #1e40af;
+    transform: scale(1.05);
+}
+
+.secondary-btn {
+    padding: 12px 25px;
+    font-size: 1.1rem;
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.secondary-btn:hover {
+    background-color: #4b5563;
+    transform: scale(1.05);
+}
+
+.btn-icon {
+    margin-right: 8px;
+}
+
+/* Loading */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    background: #fef9c3;
+    border: 1px solid #facc15;
+    border-radius: 8px;
+    color: #b45309;
+    animation: pulseWarning 1.5s infinite ease-in-out;
+}
+
+.loading.hidden {
+    display: none;
+}
+
+.loading-icon {
+    margin-right: 10px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Kết quả hiển thị */
+.result-box {
+    margin-top: 20px;
+    text-align: left;
+    font-size: 1.2rem;
+    font-weight: 500;
+    padding: 15px 15px 15px 45px;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    position: relative;
+}
+
+.result-box p {
+    margin: 8px 0;
+}
+
+.result-box.error {
+    color: #d97706; /* Màu cam cảnh báo */
+    border-color: #f59e0b;
+    background: #fef3c7;
+    animation: shake 0.25s ease-in-out 2;
+    position: relative;
+}
+
+.result-box.error::before {
+    content: "⚠️";
+    font-size: 1.4rem;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+.result-box.phishing {
+    color: #dc2626;
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.result-box.phishing::before {
+    content: "🚫";
+    font-size: 1.4rem;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+.result-box.legitimate {
+    color: #16a34a;
+    border-color: #16a34a;
+    background: #f0fdf4;
+}
+
+.result-box.legitimate::before {
+    content: "✅";
+    font-size: 1.4rem;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+.result-box.suspicious {
+    color: #b91c1c;
+    border-color: #f87171;
+    background: #fef2f2;
+    animation: shake 0.25s ease-in-out 2;
+}
+
+.result-box.suspicious::before {
+    content: "⚠️";
+    font-size: 1.4rem;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+@keyframes pulseWarning {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(234, 179, 8, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(234, 179, 8, 1);
+    }
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); }
+    75% { transform: translateX(-4px); }
+    100% { transform: translateX(0); }
+}
+
+/* Các bảng phân tích */
+.analysis-box {
+    margin-top: 25px;
+    text-align: left;
+    font-size: 1rem;
+    color: #374151;
+    padding: 15px;
+    border-radius: 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+.analysis-box.hidden {
+    display: none;
+}
+
+.analysis-box h3 {
+    color: #1e40af;
+    font-size: 1.4rem;
+    margin-bottom: 10px;
+}
+
+.analysis-box table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.analysis-box th, .analysis-box td {
+    border: 1px solid #e5e7eb;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+.analysis-box th {
+    background-color: #e0f2fe;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.analysis-box ul {
+    padding-left: 20px;
+    list-style: disc;
+}
+
+.analysis-box ul li {
+    margin: 5px 0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .app-container {
+        padding: 20px;
+    }
+    .title {
+        font-size: 1.5rem;
+    }
+    .input-field {
+        max-width: 100%;
+    }
+    .primary-btn, .secondary-btn {
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+    .result-box, .analysis-box {
+        font-size: 0.9rem;
+    }
+}
