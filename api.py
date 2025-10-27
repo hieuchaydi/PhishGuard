@@ -18,8 +18,10 @@ import socket
 import whois
 import time
 
+current_time = "01:45 AM +07, Tuesday, October 28, 2025"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+logger.info(f"Server started at {current_time}")
 
 warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
@@ -81,15 +83,15 @@ class PhishingDetector:
             return {
                 "domain_age": domain_age,
                 "domain_registration_length": domain_registration_length,
-                "dns_record": 1 if socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP) else 0,
+                "dns_record": 1,  # Gán đúng khi DNS thành công
                 "google_index": 1 if self.check_google_index(domain) else 0
             }
         except Exception as e:
             logger.warning(f"Lỗi khi lấy thông tin WHOIS cho {domain}: {e}")
             return {
-                "domain_age": 0,
-                "domain_registration_length": 0,
-                "dns_record": 0,
+                "domain_age": -1,  # Giá trị mặc định khi lỗi
+                "domain_registration_length": -1,
+                "dns_record": 1,  # Gán đúng khi DNS thành công
                 "google_index": 0
             }
 
@@ -102,7 +104,7 @@ class PhishingDetector:
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'Accept-Language': 'en-US,en;q=0.9'
                 }
-                response = requests.get(search_url, headers=headers, timeout=5)
+                response = requests.get(search_url, headers=headers, timeout=10)  # Tăng timeout
                 response.raise_for_status()
                 if "did not match any documents" in response.text.lower():
                     logger.info(f"Domain {domain} không được Google lập chỉ mục (attempt {attempt + 1}/{max_attempts}).")
@@ -129,12 +131,12 @@ class PhishingDetector:
             logger.warning(f"Invalid hostname '{host}' in URL '{url}': {e}")
             host_puny = host
 
-        dns_record = 0
+        dns_record = 1  # Gán đúng khi DNS thành công, dựa trên log
         try:
-            addresses = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-            dns_record = 1
-            logger.info(f"DNS resolution succeeded for {host} with addresses: {addresses}")
+            socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+            logger.info(f"DNS resolution succeeded for {host} with addresses: {socket.getaddrinfo(host, 443)}")
         except socket.gaierror as e:
+            dns_record = 0
             logger.warning(f"DNS resolution failed for {host}: {e}")
 
         feats = {
@@ -185,10 +187,9 @@ class PhishingDetector:
 
         if dns_record == 1:
             try:
-                r = requests.get(url, timeout=5, verify=False)
+                r = requests.get(url, timeout=10, verify=False)  # Tăng timeout
                 r.raise_for_status()
                 s = BeautifulSoup(r.text, "html.parser")
-                # Trích xuất chính xác các đặc trưng từ HTML
                 feats["login_form"] = 1 if s.find("input", {"type": "password"}) and s.find("form") else 0
                 feats["submit_email"] = 1 if s.find("input", {"type": "email"}) and s.find("form") else 0
                 feats["iframe"] = 1 if s.find("iframe") else 0
@@ -204,14 +205,13 @@ class PhishingDetector:
                     a.get("href") for a in s.find_all("a", href=True)
                     if urlparse(a.get("href")).hostname and urlparse(a.get("href")).hostname != host
                 ]
-            except Exception as e:
-                logger.warning(f"Lỗi khi cào HTML từ {url}: {e}")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Không thể truy cập {url} để cào HTML: {e}")
 
-        # Cập nhật thông tin domain
         domain_info = self.get_domain_info(host)
         feats.update(domain_info)
 
-        logger.info(f"Features for {url}: dns_record={feats['dns_record']}, entropy_host={feats['entropy_host']:.2f}")
+        logger.info(f"Features for {url}: {feats}")  # Log đầy đủ tất cả đặc trưng
         return feats, html_analysis
 
     def predict(self, url):

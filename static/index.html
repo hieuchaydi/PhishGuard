@@ -6,22 +6,18 @@
     <title>Phát hiện Web Giả Mạo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Thêm Chart.js -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body class="app-bg">
-
     <div class="app-container">
-
         <div class="header-box">
             <i data-lucide="shield-alert" class="icon"></i>
             <h1 class="title">Phát hiện Website Giả Mạo</h1>
         </div>
-
         <p class="subtitle">
             Nhập địa chỉ website để kiểm tra mức độ an toàn.
         </p>
-
         <div class="space-y-4">
             <div class="input-group">
                 <input id="url-input" type="text" 
@@ -31,27 +27,23 @@
                     <i data-lucide="search" class="btn-icon"></i>Kiểm tra
                 </button>
             </div>
-
             <button onclick="showModelInfo()" class="secondary-btn">
                 <i data-lucide="file-text" class="btn-icon"></i>Xem Dữ Liệu Mô Hình
             </button>
+            <button onclick="saveResultsToCSV()" class="secondary-btn">
+                <i data-lucide="download" class="btn-icon"></i>Lưu Kết Quả
+            </button>
         </div>
-
         <div id="loading" class="loading hidden">
             <i data-lucide="loader-2" class="loading-icon"></i>
             Đang kiểm tra trang web...
         </div>
-
         <div id="result" class="result-box hidden"></div>
-
         <div id="html-analysis" class="analysis-box hidden"></div>
         <div id="features-analysis" class="analysis-box hidden"></div>
         <div id="model-info" class="analysis-box hidden"></div>
-
     </div>
-
     <script src="/static/script.js"></script>
     <script>lucide.createIcons();</script>
-
 </body>
 </html>
