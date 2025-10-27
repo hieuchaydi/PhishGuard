@@ -15,6 +15,7 @@ import logging
 import os
 import idna
 import socket
+import whois
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -61,13 +62,45 @@ class PhishingDetector:
         words = re.findall(r'[A-Za-z0-9]+', text)
         return max((len(w) for w in words), default=0)
 
-    def domain_info(self, domain):
-        return {
-            "domain_age": 0,
-            "domain_registration_length": 0,
-            "dns_record": 0,
-            "google_index": 0
-        }
+    def get_domain_info(self, domain):
+        try:
+            w = whois.whois(domain)
+            creation_date = w.creation_date
+            expiration_date = w.expiration_date
+            if isinstance(creation_date, list):
+                creation_date = creation_date[0]
+            if isinstance(expiration_date, list):
+                expiration_date = expiration_date[0]
+            if creation_date and expiration_date:
+                domain_age = (expiration_date - creation_date).days
+                domain_registration_length = (expiration_date - creation_date).days
+            else:
+                domain_age = 0
+                domain_registration_length = 0
+            return {
+                "domain_age": domain_age,
+                "domain_registration_length": domain_registration_length,
+                "dns_record": 1 if socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP) else 0,
+                "google_index": 1 if self.check_google_index(domain) else 0
+            }
+        except Exception as e:
+            logger.warning(f"Lỗi khi lấy thông tin WHOIS cho {domain}: {e}")
+            return {
+                "domain_age": 0,
+                "domain_registration_length": 0,
+                "dns_record": 0,
+                "google_index": 0
+            }
+
+    def check_google_index(self, domain):
+        try:
+            search_url = f"https://www.google.com/search?q=site:{domain}"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(search_url, headers=headers, timeout=5)
+            return "did not match any documents" not in response.text
+        except Exception as e:
+            logger.warning(f"Lỗi khi kiểm tra chỉ mục Google cho {domain}: {e}")
+            return 0
 
     def extract_features(self, url):
         if not url.startswith(("http://", "https://")):
@@ -81,7 +114,6 @@ class PhishingDetector:
             logger.warning(f"Invalid hostname '{host}' in URL '{url}': {e}")
             host_puny = host
 
-        # Enhanced DNS resolution check
         dns_record = 0
         try:
             addresses = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
@@ -115,11 +147,11 @@ class PhishingDetector:
             "shortening_service": 1 if any(s in host for s in ['bit.ly', 't.co', 'goo.gl', 'tinyurl.com']) else 0,
             "ratio_digits_url": sum(c.isdigit() for c in url) / len(url),
             "ratio_digits_host": sum(c.isdigit() for c in host) / len(host) if len(host) > 0 else 0,
-            "login_form": 1,
-            "submit_email": 1,
-            "iframe": 1,
-            "popup_window": 1,
-            "empty_title": 1,
+            "login_form": 0,
+            "submit_email": 0,
+            "iframe": 0,
+            "popup_window": 0,
+            "empty_title": 0,
             "domain_in_title": 0,
             "domain_age": 0,
             "domain_registration_length": 0,
@@ -148,7 +180,6 @@ class PhishingDetector:
                 title = s.find("title")
                 feats["empty_title"] = 1 if not title or not title.text.strip() else 0
                 feats["domain_in_title"] = 1 if title and host.split(".")[0] in title.text.lower() else 0
-                feats["google_index"] = 1
                 html_analysis["num_links"] = len(s.find_all("a"))
                 html_analysis["num_forms"] = len(s.find_all("form"))
                 html_analysis["num_iframes"] = len(s.find_all("iframe"))
@@ -160,7 +191,10 @@ class PhishingDetector:
             except Exception as e:
                 logger.warning(f"Lỗi khi cào HTML từ {url}: {e}")
 
-        feats.update(self.domain_info(host))
+        # Cập nhật thông tin domain
+        domain_info = self.get_domain_info(host)
+        feats.update(domain_info)
+
         logger.info(f"Features for {url}: dns_record={feats['dns_record']}, entropy_host={feats['entropy_host']:.2f}")
         return feats, html_analysis
 
@@ -172,7 +206,7 @@ class PhishingDetector:
         prob = self.ensemble.predict_proba(X_scaled)[0][1]
         return {
             "url": url,
-            "result": "Phishing ⚠️" if pred else "Legitimate ✅",
+            "result": "Phishing ⚠️" if prob >= 0.5 else "Legitimate ✅",
             "probability": round(prob, 2),
             "features": feats,
             "html_analysis": html_analysis
@@ -199,14 +233,7 @@ async def predict_phishing(req: URLRequest):
     try:
         logger.info(f"Nhận yêu cầu dự đoán cho URL: {url}")
         result = detector.predict(url)
-        # Adjusted threshold to avoid false positives for low entropy
-        if result["features"]["dns_record"] == 0 and result["features"]["entropy_host"] > 4.5:
-            result["result"] = "Phishing ⚠️"
-            result["probability"] = max(result["probability"], 0.9)
-            logger.info("⚠️ URL không thể phân giải và entropy cao, đánh dấu là Phishing")
-        elif result["probability"] < 0.6 and result["result"] == "Legitimate ✅":
-            logger.info("⚠️ URL nghi ngờ nhưng chưa rõ, tự động cảnh báo an toàn")
-            result["result"] = "Có dấu hiệu đáng ngờ ⚠️"
+        # Loại bỏ quy tắc tùy chỉnh, sử dụng ngưỡng 0.5
         return result
     except Exception as e:
         logger.error(f"Lỗi khi dự đoán: {e}")
