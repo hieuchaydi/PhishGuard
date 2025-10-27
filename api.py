@@ -16,6 +16,7 @@ import os
 import idna
 import socket
 import whois
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -93,14 +94,28 @@ class PhishingDetector:
             }
 
     def check_google_index(self, domain):
-        try:
-            search_url = f"https://www.google.com/search?q=site:{domain}"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            response = requests.get(search_url, headers=headers, timeout=5)
-            return "did not match any documents" not in response.text
-        except Exception as e:
-            logger.warning(f"Lỗi khi kiểm tra chỉ mục Google cho {domain}: {e}")
-            return 0
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                search_url = f"https://www.google.com/search?q=site:{domain}"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept-Language': 'en-US,en;q=0.9'
+                }
+                response = requests.get(search_url, headers=headers, timeout=5)
+                response.raise_for_status()
+                if "did not match any documents" in response.text.lower():
+                    logger.info(f"Domain {domain} không được Google lập chỉ mục (attempt {attempt + 1}/{max_attempts}).")
+                    return 0
+                logger.info(f"Domain {domain} được Google lập chỉ mục (attempt {attempt + 1}/{max_attempts}).")
+                return 1
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Lỗi khi kiểm tra chỉ mục Google cho {domain} (attempt {attempt + 1}/{max_attempts}): {e}")
+                if attempt < max_attempts - 1:
+                    time.sleep(2)
+                else:
+                    logger.error(f"Không thể kiểm tra chỉ mục Google cho {domain} sau {max_attempts} lần thử.")
+                    return 0
 
     def extract_features(self, url):
         if not url.startswith(("http://", "https://")):
@@ -173,14 +188,15 @@ class PhishingDetector:
                 r = requests.get(url, timeout=5, verify=False)
                 r.raise_for_status()
                 s = BeautifulSoup(r.text, "html.parser")
-                feats["login_form"] = 1 if s.find("input", {"type": "password"}) else 0
-                feats["submit_email"] = 1 if s.find("input", {"type": "email"}) else 0
+                # Trích xuất chính xác các đặc trưng từ HTML
+                feats["login_form"] = 1 if s.find("input", {"type": "password"}) and s.find("form") else 0
+                feats["submit_email"] = 1 if s.find("input", {"type": "email"}) and s.find("form") else 0
                 feats["iframe"] = 1 if s.find("iframe") else 0
                 feats["popup_window"] = 1 if "window.open" in r.text.lower() else 0
                 title = s.find("title")
                 feats["empty_title"] = 1 if not title or not title.text.strip() else 0
                 feats["domain_in_title"] = 1 if title and host.split(".")[0] in title.text.lower() else 0
-                html_analysis["num_links"] = len(s.find_all("a"))
+                html_analysis["num_links"] = len(s.find_all("a", href=True))
                 html_analysis["num_forms"] = len(s.find_all("form"))
                 html_analysis["num_iframes"] = len(s.find_all("iframe"))
                 html_analysis["title"] = title.text.strip() if title and title.text.strip() else "Không có"
@@ -233,7 +249,6 @@ async def predict_phishing(req: URLRequest):
     try:
         logger.info(f"Nhận yêu cầu dự đoán cho URL: {url}")
         result = detector.predict(url)
-        # Loại bỏ quy tắc tùy chỉnh, sử dụng ngưỡng 0.5
         return result
     except Exception as e:
         logger.error(f"Lỗi khi dự đoán: {e}")
